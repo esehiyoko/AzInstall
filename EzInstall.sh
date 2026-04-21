@@ -41,9 +41,12 @@ sudo yum makecache \
   || die "CentOS vault からの makecache に失敗。ネットワーク / DNS / 時刻 (ca-certificates) を確認してください。"
 
 # ------------------------------------------------------------
-log "[5/8] epel-release 導入"
-sudo yum install -y epel-release \
-  || die "epel-release のインストールに失敗しました。"
+log "[5/8] 既存 EPEL repo を退避し、epel-release を repo 非依存で導入"
+sudo rm -f /etc/yum.repos.d/epel*.repo
+
+sudo yum install -y --disablerepo='*' \
+  https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
+  || die "epel-release の直接導入に失敗しました。ネットワーク / DNS / https / 時刻同期を確認してください。"
 
 # ------------------------------------------------------------
 # [6/8] epel*.repo を全削除し、archive 向け epel.repo を直接配置
