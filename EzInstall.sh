@@ -1,24 +1,61 @@
 #!/bin/bash
-# CentOS 7 (EOL) 環境向け ezstream インストールスクリプト
-# - CentOS repo を vault.centos.org に向け直す
-# - epel-release を導入後、epel*.repo を全削除し archive 向け epel.repo を直接配置する
-# - ezstream を導入する
+# CentOS 7 (EOL) ezstream installer
+#
+# What this script does:
+#  1. Backs up /etc/yum.repos.d
+#  2. Rewrites CentOS repos to vault.centos.org
+#  3. Removes broken EPEL repo definitions
+#  4. Downloads the EPEL GPG key from the Fedora archive
+#  5. Writes a clean archive-based /etc/yum.repos.d/epel.repo
+#  6. Verifies CentOS and EPEL metadata
+#  7. Installs ezstream
+#
+# Notes:
+#  - This script does NOT use epel-release, because CentOS 7 / EPEL 7 paths
+#    and release RPM availability are inconsistent now.
+#  - Console messages are intentionally English-only.
+
 set -euo pipefail
 
-log()  { echo -e "\n=== $* ==="; }
-die()  { echo -e "\n[ERROR] $*" >&2; exit 1; }
+log() {
+  echo
+  echo "=== $* ==="
+}
 
-# ------------------------------------------------------------
-log "[1/8] repo バックアップ"
+die() {
+  echo
+  echo "[ERROR] $*" >&2
+  exit 1
+}
+
+if [ "${EUID}" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
+}
+
+need_cmd yum
+need_cmd rpm
+need_cmd sed
+need_cmd grep
+need_cmd cp
+need_cmd rm
+need_cmd tee
+need_cmd curl
+
+log "[1/9] Backup yum repository files"
 BACKUP_DIR="/etc/yum.repos.d.bak.$(date +%Y%m%d%H%M%S)"
-sudo cp -a /etc/yum.repos.d "$BACKUP_DIR"
-echo "backup: $BACKUP_DIR"
+$SUDO cp -a /etc/yum.repos.d "$BACKUP_DIR"
+echo "Backup created: $BACKUP_DIR"
 
-# ------------------------------------------------------------
-log "[2/8] CentOS repo を vault.centos.org 向けに修正"
+log "[2/9] Rewrite CentOS repositories to vault.centos.org"
 for f in /etc/yum.repos.d/CentOS-*.repo; do
   [ -f "$f" ] || continue
-  sudo sed -i \
+  $SUDO sed -i \
     -e 's/^[[:space:]]*mirrorlist=/#mirrorlist=/g' \
     -e 's/^[[:space:]]*metalink=/#metalink=/g' \
     -e 's/^[[:space:]]*#[[:space:]]*baseurl=/baseurl=/g' \
@@ -29,36 +66,36 @@ for f in /etc/yum.repos.d/CentOS-*.repo; do
     "$f"
 done
 
-# ------------------------------------------------------------
-log "[3/8] yum キャッシュ削除"
-sudo yum clean all
-sudo rm -rf /var/cache/yum
+log "[3/9] Disable broken EPEL definitions before any yum access"
+for f in /etc/yum.repos.d/*.repo; do
+  [ -f "$f" ] || continue
+  if grep -qiE 'download\.example|^\[epel([^-].*)?\]|^\[epel\]|^\[epel-debuginfo\]|^\[epel-source\]|^\[epel-testing.*\]|^\[epel-playground.*\]' "$f"; then
+    echo "Disabling broken or legacy EPEL settings in: $f"
+    $SUDO sed -i \
+      -e 's/^[[:space:]]*enabled=.*/enabled=0/g' \
+      -e 's/^[[:space:]]*mirrorlist=/#mirrorlist=/g' \
+      -e 's/^[[:space:]]*metalink=/#metalink=/g' \
+      "$f"
+  fi
+done
 
-# ------------------------------------------------------------
-log "[4/8] CentOS 側キャッシュ再構築"
-sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 || true
-sudo yum makecache \
-  || die "CentOS vault からの makecache に失敗。ネットワーク / DNS / 時刻 (ca-certificates) を確認してください。"
+log "[4/9] Clean yum cache"
+$SUDO yum clean all
+$SUDO rm -rf /var/cache/yum
 
-# ------------------------------------------------------------
-log "[5/8] 既存 EPEL repo を退避し、epel-release を repo 非依存で導入"
-sudo rm -f /etc/yum.repos.d/epel*.repo
+log "[5/9] Verify CentOS vault repositories"
+$SUDO rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 || true
+$SUDO yum --disablerepo='epel*' makecache \
+  || die "CentOS vault makecache failed. Check network, DNS, time sync, and CA certificates."
 
-sudo yum install -y --disablerepo='*' \
-  https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-  || die "epel-release の直接導入に失敗しました。ネットワーク / DNS / https / 時刻同期を確認してください。"
+log "[6/9] Remove all EPEL repo files and install archive-based EPEL configuration"
+$SUDO rm -f /etc/yum.repos.d/epel*.repo
 
-# ------------------------------------------------------------
-# [6/8] epel*.repo を全削除し、archive 向け epel.repo を直接配置
-#   - さくらイメージの baseurl=http://download.example/... のような
-#     不定なプレースホルダに依存しない
-#   - epel-release が入れた mirrorlist= ベースの設定を丸ごと置き換える
-# ------------------------------------------------------------
-log "[6/8] epel.repo を archive.fedoraproject.org 向けに再作成"
+$SUDO curl -L --fail -o /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7 \
+  https://archive.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL-7 \
+  || die "Failed to download RPM-GPG-KEY-EPEL-7 from the Fedora archive."
 
-sudo rm -f /etc/yum.repos.d/epel*.repo
-
-sudo tee /etc/yum.repos.d/epel.repo > /dev/null <<'EOF'
+$SUDO tee /etc/yum.repos.d/epel.repo > /dev/null <<'REPOEOF'
 [epel]
 name=Extra Packages for Enterprise Linux 7 - $basearch (archive)
 baseurl=https://archive.fedoraproject.org/pub/archive/epel/7/$basearch
@@ -74,43 +111,34 @@ gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
 
 [epel-source]
-name=Extra Packages for Enterprise Linux 7 - $basearch - Source (archive)
+name=Extra Packages for Enterprise Linux 7 - Source (archive)
 baseurl=https://archive.fedoraproject.org/pub/archive/epel/7/SRPMS
 enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
-EOF
+REPOEOF
 
-echo "--- 配置した epel.repo 内容 ---"
-sudo cat /etc/yum.repos.d/epel.repo
+echo "Installed /etc/yum.repos.d/epel.repo:"
+$SUDO cat /etc/yum.repos.d/epel.repo
 
-# 念のため、何らかの理由で他に EPEL 系 repo が残っていれば無効化
-# (今回は上で rm しているので通常は何も残らないが、将来的な保険)
-for f in /etc/yum.repos.d/epel-testing*.repo /etc/yum.repos.d/epel-playground*.repo; do
-  [ -f "$f" ] || continue
-  echo "disable: $f"
-  sudo sed -i 's/^enabled=.*/enabled=0/g' "$f"
-done
+if grep -q 'download.example' /etc/yum.repos.d/epel.repo; then
+  die "epel.repo still contains download.example. Aborting."
+fi
 
-# ------------------------------------------------------------
-log "[7/8] EPEL 単体で makecache 検証"
-sudo yum clean all
-sudo rm -rf /var/cache/yum
+log "[7/9] Verify EPEL archive repository only"
+$SUDO yum clean all
+$SUDO rm -rf /var/cache/yum
+$SUDO yum --disablerepo='*' --enablerepo='epel' makecache \
+  || die "EPEL archive makecache failed. Check network, DNS, time sync, and CA certificates."
 
-sudo yum --disablerepo='*' --enablerepo='epel' makecache \
-  || die "EPEL archive への makecache に失敗しました。ネットワーク / https (ca-certificates) / 時刻同期を確認してください。"
+log "[8/9] Rebuild full yum metadata and install ezstream"
+$SUDO yum makecache \
+  || die "Full yum makecache failed."
+$SUDO yum install -y ezstream \
+  || die "Failed to install ezstream."
 
-log "全体キャッシュ再構築"
-sudo yum makecache \
-  || die "全体の makecache に失敗しました。"
-
-# ------------------------------------------------------------
-log "[8/8] ezstream インストール"
-sudo yum install -y ezstream \
-  || die "ezstream のインストールに失敗しました。"
-
-# ------------------------------------------------------------
-log "[完了] バージョン確認"
-ezstream -V
+log "[9/9] Done"
+ezstream -V || true
 echo
-echo "backup は $BACKUP_DIR に残っています。問題なければ削除可: sudo rm -rf $BACKUP_DIR"
+echo "Repository backup directory: $BACKUP_DIR"
+echo "You can remove it later if everything works: ${SUDO:+sudo }rm -rf $BACKUP_DIR"
