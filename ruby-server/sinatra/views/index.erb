@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ストリーム状況</title>
+</head>
+<body>
+  <h1>ストリーム状況</h1>
+  <ul>
+    <li>最新断片: <%= @latest_fragment %></li>
+    <li>断片数: <%= @fragment_count %></li>
+    <li>遅延（分）: <%= @delay_minutes %></li>
+    <li>tempディレクトリ: <%= @temp_dir %></li>
+  </ul>
+</body>
+</html>

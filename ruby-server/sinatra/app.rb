@@ -32,18 +32,14 @@ class MyApp < Sinatra::Base
     end
   end
 
+
   get ['/','/index.html'] do
     files = audio_fragments
-    latest = files.last
-    delay = DELAY_MIN
-    status = {
-      latest_fragment: latest ? File.basename(latest) : nil,
-      fragment_count: files.size,
-      delay_minutes: delay,
-      temp_dir: TEMP_DIR
-    }
-    content_type :json
-    status.to_json
+    @latest_fragment = files.last ? File.basename(files.last) : nil
+    @fragment_count = files.size
+    @delay_minutes = DELAY_MIN
+    @temp_dir = TEMP_DIR
+    erb :index
   end
 
   get '/live.mp3' do
