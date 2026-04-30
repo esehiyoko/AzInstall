@@ -14,8 +14,9 @@ end
 
 
 def start_sinatra
-  sinatra_app = File.expand_path('sinatra/app.rb', __dir__)
-  pid = Process.spawn('ruby', sinatra_app, out: '/dev/null', err: '/dev/null')
+  sinatra_dir = File.expand_path('sinatra', __dir__)
+  config_ru = File.join(sinatra_dir, 'config.ru')
+  pid = Process.spawn('bundle', 'exec', 'rackup', config_ru, '-p', '4567', '-o', '0.0.0.0', chdir: sinatra_dir, out: '/dev/null', err: '/dev/null')
   File.open(PID_FILE, 'a') { |f| f.puts pid }
   pid
 end
