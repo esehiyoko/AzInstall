@@ -50,8 +50,7 @@ class MyApp < Sinatra::Base
       last_sent = nil
       loop do
         files = fragment_list_lambda.call
-        files = files.drop_while { |f| f != last_sent } if last_sent
-        files.shift if last_sent
+        files = files.select { |f| f > last_sent } if last_sent
         files.each do |f|
           begin
             File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }

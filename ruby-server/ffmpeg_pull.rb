@@ -25,6 +25,14 @@ RETENTION_MINUTES = (ENV['RETENTION_MINUTES'] || 60).to_i
 
 FileUtils.mkdir_p(TEMP_DIR)
 
+def copy_silence(out_file)
+  if File.exist?(SILENCE_MP3)
+    FileUtils.cp(SILENCE_MP3, out_file)
+  else
+    puts "[#{Time.now}] [FATAL] silence.mp3が見つかりません。bootstrap.rbを先に実行してください: #{SILENCE_MP3}"
+  end
+end
+
 loop do
   timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
   out_file = File.join(TEMP_DIR, "audio_#{timestamp}.mp3")
@@ -44,32 +52,20 @@ loop do
   begin
     stdout_str, stderr_str, status = Open3.capture3(*cmd)
     if status.success? && File.size?(out_file)
-      # ファイルサイズが小さすぎる場合は無音で強制上書き（例：1秒未満のmp3は異常とみなす）
       if File.size(out_file) < 1024 * 8
         puts "[#{Time.now}] [WARN] Output too small, overwriting with silence: #{out_file}"
-        unless File.exist?(SILENCE_MP3)
-          system('ffmpeg', '-f', 'lavfi', '-t', DURATION_SEC.to_s, '-i', 'anullsrc=r=44100:cl=stereo', '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-ab', '128k', SILENCE_MP3)
-        end
-        FileUtils.cp(SILENCE_MP3, out_file)
+        copy_silence(out_file)
         puts "[#{Time.now}] [INFO] Overwritten with silence: #{out_file}"
       else
         puts "[#{Time.now}] [SUCCESS] Saved: #{out_file}"
       end
     else
-      puts "[#{Time.now}] [ERROR] ffmpeg failed, generating silence: #{out_file}"
-      unless File.exist?(SILENCE_MP3)
-        system('ffmpeg', '-f', 'lavfi', '-t', DURATION_SEC.to_s, '-i', 'anullsrc=r=44100:cl=stereo', '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-ab', '128k', SILENCE_MP3)
-      end
-      FileUtils.cp(SILENCE_MP3, out_file)
-      puts "[#{Time.now}] [INFO] Saved silence: #{out_file}"
+      puts "[#{Time.now}] [ERROR] ffmpeg failed, using silence: #{out_file}"
+      copy_silence(out_file)
     end
   rescue => e
     puts "[#{Time.now}] [EXCEPTION] #{e.message}"
-    unless File.exist?(SILENCE_MP3)
-      system('ffmpeg', '-f', 'lavfi', '-t', DURATION_SEC.to_s, '-i', 'anullsrc=r=44100:cl=stereo', '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-ab', '128k', SILENCE_MP3)
-    end
-    FileUtils.cp(SILENCE_MP3, out_file)
-    puts "[#{Time.now}] [INFO] Saved silence (exception): #{out_file}"
+    copy_silence(out_file)
   end
 
   # 保存期間を超えた古いファイルを削除

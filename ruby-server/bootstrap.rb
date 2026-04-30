@@ -111,4 +111,27 @@ else
   end
 end
 
+# silence.mp3 の生成
+duration_sec = 30
+env_file = File.expand_path('.env', __dir__)
+if File.exist?(env_file)
+  File.readlines(env_file).each do |line|
+    m = line.match(/^DURATION_SEC=(\d+)/)
+    duration_sec = m[1].to_i if m
+  end
+end
+silence_mp3 = File.expand_path('silence.mp3', __dir__)
+if File.exist?(silence_mp3)
+  puts "[INFO] silence.mp3は既に存在します: #{silence_mp3}"
+else
+  puts "[INFO] silence.mp3を生成します (#{duration_sec}秒)..."
+  ok = system('ffmpeg', '-f', 'lavfi', '-t', duration_sec.to_s, '-i', 'anullsrc=r=44100:cl=stereo',
+              '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-ab', '128k', silence_mp3)
+  if ok && File.exist?(silence_mp3)
+    puts "[SUCCESS] silence.mp3を生成しました"
+  else
+    puts "[ERROR] silence.mp3の生成に失敗しました。ffmpegを確認してください"
+  end
+end
+
 puts "[OK] 環境チェック完了"
