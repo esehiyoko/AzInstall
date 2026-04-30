@@ -42,29 +42,13 @@ class MyApp < Sinatra::Base
     erb :index
   end
 
-  get '/live.mp3' do
-    content_type 'audio/mpeg'
-    stream do |out|
-      last_sent = nil
-      loop do
-        files = audio_fragments
-        files = files.drop_while { |f| f != last_sent } if last_sent
-        files.shift if last_sent # skip the last sent file itself
-        files.each do |f|
-          File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }
-          last_sent = f
-        end
-        sleep 1
-      end
-    end
-  end
 
-  get '/delay.mp3' do
+  def stream_fragments(fragment_list_lambda)
     content_type 'audio/mpeg'
     stream do |out|
       last_sent = nil
       loop do
-        files = delayed_fragments
+        files = fragment_list_lambda.call
         files = files.drop_while { |f| f != last_sent } if last_sent
         files.shift if last_sent
         files.each do |f|
@@ -74,6 +58,14 @@ class MyApp < Sinatra::Base
         sleep 1
       end
     end
+  end
+
+  get '/live.mp3' do
+    stream_fragments(-> { audio_fragments })
+  end
+
+  get '/delay.mp3' do
+    stream_fragments(-> { delayed_fragments })
   end
 end
 
