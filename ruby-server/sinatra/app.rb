@@ -10,7 +10,7 @@ class MyApp < Sinatra::Base
 
   TEMP_DIR = ENV['TEMP_DIR'] || File.expand_path('../../temp', __dir__)
   DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i
-  DELAY_MIN = (ENV['DELAY_MINUTES'] || ENV['CACHE_KEEP_MINUTES'] || 30).to_i
+  DELAY_MIN = (ENV['DELAY_MINUTES'] || 30).to_i
 
   helpers do
     def audio_fragments
@@ -44,17 +44,35 @@ class MyApp < Sinatra::Base
 
   get '/live.mp3' do
     content_type 'audio/mpeg'
-    files = audio_fragments.last(20) # 直近20個を連結
     stream do |out|
-      files.each { |f| File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) } }
+      last_sent = nil
+      loop do
+        files = audio_fragments
+        files = files.drop_while { |f| f != last_sent } if last_sent
+        files.shift if last_sent # skip the last sent file itself
+        files.each do |f|
+          File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }
+          last_sent = f
+        end
+        sleep 1
+      end
     end
   end
 
   get '/delay.mp3' do
     content_type 'audio/mpeg'
-    files = delayed_fragments.last(20) # 遅延分の直近20個を連結
     stream do |out|
-      files.each { |f| File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) } }
+      last_sent = nil
+      loop do
+        files = delayed_fragments
+        files = files.drop_while { |f| f != last_sent } if last_sent
+        files.shift if last_sent
+        files.each do |f|
+          File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }
+          last_sent = f
+        end
+        sleep 1
+      end
     end
   end
 end
