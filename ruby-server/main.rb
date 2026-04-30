@@ -15,8 +15,15 @@ end
 
 def start_sinatra
   sinatra_dir = File.expand_path('sinatra', __dir__)
-  config_ru = File.join(sinatra_dir, 'config.ru')
-  pid = Process.spawn('bundle', 'exec', 'rackup', config_ru, '-p', '4567', '-o', '0.0.0.0', chdir: sinatra_dir, out: '/dev/null', err: '/dev/null')
+  config_ru   = File.join(sinatra_dir, 'config.ru')
+  crt = File.expand_path('server.crt', __dir__)
+  key = File.expand_path('server.key', __dir__)
+  bind = if File.exist?(crt) && File.exist?(key)
+    "ssl://0.0.0.0:4567?cert=#{crt}&key=#{key}"
+  else
+    'tcp://0.0.0.0:4567'
+  end
+  pid = Process.spawn('bundle', 'exec', 'puma', '-b', bind, config_ru, chdir: sinatra_dir, out: '/dev/null', err: '/dev/null')
   File.open(PID_FILE, 'a') { |f| f.puts pid }
   pid
 end
