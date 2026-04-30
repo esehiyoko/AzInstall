@@ -2,7 +2,8 @@
 require 'open3'
 require 'fileutils'
 require 'time'
-
+require 'dotenv'
+Dotenv.load(File.expand_path('.env', __dir__))
 
 # 設定
 def build_stream_url
@@ -17,9 +18,10 @@ end
 
 STREAM_URL = build_stream_url
 TEMP_DIR = ENV['TEMP_DIR'] || './temp'
-DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i # 1ファイルあたりの秒数（デフォルト30秒）
-RETRY_WAIT = (ENV['RETRY_WAIT'] || 10).to_i      # 再接続までの待機秒数
-SILENCE_MP3 = ENV['SILENCE_MP3'] || './silence.mp3' # 無音ファイルのパス
+DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i
+RETRY_WAIT = (ENV['RETRY_WAIT'] || 10).to_i
+SILENCE_MP3 = ENV['SILENCE_MP3'] || File.expand_path('silence.mp3', __dir__)
+RETENTION_MINUTES = (ENV['RETENTION_MINUTES'] || 60).to_i
 
 FileUtils.mkdir_p(TEMP_DIR)
 
@@ -69,5 +71,19 @@ loop do
     FileUtils.cp(SILENCE_MP3, out_file)
     puts "[#{Time.now}] [INFO] Saved silence (exception): #{out_file}"
   end
-  sleep 1
+
+  # 保存期間を超えた古いファイルを削除
+  cutoff = Time.now - RETENTION_MINUTES * 60
+  Dir.glob(File.join(TEMP_DIR, 'audio_*.mp3')).each do |f|
+    t = File.basename(f)[6..20]
+    begin
+      frag_time = Time.strptime(t, '%Y%m%d_%H%M%S')
+      if frag_time < cutoff
+        FileUtils.rm_f(f)
+        puts "[#{Time.now}] [INFO] Deleted old fragment: #{f}"
+      end
+    rescue
+      # タイムスタンプが解析できないファイルは無視
+    end
+  end
 end

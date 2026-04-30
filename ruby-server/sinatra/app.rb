@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 require 'sinatra/base'
-
 require 'time'
 require 'json'
+require 'dotenv'
+Dotenv.load(File.expand_path('../.env', __dir__))
 
 class MyApp < Sinatra::Base
   set :bind, '0.0.0.0'
@@ -69,4 +70,4 @@ class MyApp < Sinatra::Base
   end
 end
 
-MyApp.run!
+MyApp.run! if __FILE__ == $0
