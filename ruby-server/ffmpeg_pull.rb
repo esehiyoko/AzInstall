@@ -6,8 +6,6 @@ require 'time'
 
 # 設定
 def build_stream_url
-  # STREAM_URLが直接指定されていればそれを使う
-  return ENV['STREAM_URL'] if ENV['STREAM_URL'] && !ENV['STREAM_URL'].empty?
   ip = ENV['BARIX_IP'] || 'barix_ip'
   port = ENV['PORT'] || '80'
   user = ENV['BARIX_USERNAME']
