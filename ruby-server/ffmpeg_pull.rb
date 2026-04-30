@@ -3,8 +3,21 @@ require 'open3'
 require 'fileutils'
 require 'time'
 
+
 # 設定
-STREAM_URL = ENV['STREAM_URL'] || 'http://barix_ip:port/stream'
+def build_stream_url
+  # STREAM_URLが直接指定されていればそれを使う
+  return ENV['STREAM_URL'] if ENV['STREAM_URL'] && !ENV['STREAM_URL'].empty?
+  ip = ENV['BARIX_IP'] || 'barix_ip'
+  port = ENV['PORT'] || '80'
+  user = ENV['BARIX_USERNAME']
+  pass = ENV['BARIX_PASSWORD']
+  mount = ENV['BARIX_MOUNT_POINT'] || 'streama.mp3'
+  auth = (user && pass && !user.empty? && !pass.empty?) ? "#{user}:#{pass}@" : ''
+  "http://#{auth}#{ip}:#{port}/#{mount}"
+end
+
+STREAM_URL = build_stream_url
 TEMP_DIR = ENV['TEMP_DIR'] || './temp'
 DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i # 1ファイルあたりの秒数（デフォルト30秒）
 RETRY_WAIT = (ENV['RETRY_WAIT'] || 10).to_i      # 再接続までの待機秒数
