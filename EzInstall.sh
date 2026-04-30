@@ -92,7 +92,7 @@ log "[6/9] Remove all EPEL repo files and install archive-based EPEL configurati
 $SUDO rm -f /etc/yum.repos.d/epel*.repo
 
 $SUDO curl -L --fail -o /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7 \
-  https://archive.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL-7 \
+  https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7 \
   || die "Failed to download RPM-GPG-KEY-EPEL-7 from the Fedora archive."
 
 $SUDO tee /etc/yum.repos.d/epel.repo > /dev/null <<'REPOEOF'
