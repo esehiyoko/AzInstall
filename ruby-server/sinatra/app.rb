@@ -10,7 +10,7 @@ class MyApp < Sinatra::Base
 
   TEMP_DIR = ENV['TEMP_DIR'] || File.expand_path('../../temp', __dir__)
   DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i
-  DELAY_MIN = (ENV['DELAY_MINUTES'] || 30).to_i
+  DELAY_MINUTES = (ENV['DELAY_MINUTES'] || 30).to_i
 
   helpers do
     def audio_fragments
@@ -19,7 +19,7 @@ class MyApp < Sinatra::Base
 
     def delayed_fragments
       now = Time.now
-      delay_sec = DELAY_MIN * 60
+      delay_sec = DELAY_MINUTES * 60
       audio_fragments.select do |f|
         t = File.basename(f)[6..20] # 'audio_YYYYmmdd_HHMMSS.mp3'
         begin
@@ -37,7 +37,7 @@ class MyApp < Sinatra::Base
     files = audio_fragments
     @latest_fragment = files.last ? File.basename(files.last) : nil
     @fragment_count = files.size
-    @delay_minutes = DELAY_MIN
+    @delay_minutes = DELAY_MINUTES
     @temp_dir = TEMP_DIR
     erb :index
   end
