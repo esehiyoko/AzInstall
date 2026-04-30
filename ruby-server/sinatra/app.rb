@@ -53,7 +53,11 @@ class MyApp < Sinatra::Base
         files = files.drop_while { |f| f != last_sent } if last_sent
         files.shift if last_sent
         files.each do |f|
-          File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }
+          begin
+            File.open(f, 'rb') { |ff| IO.copy_stream(ff, out) }
+          rescue Errno::EPIPE, IOError
+            return
+          end
           last_sent = f
         end
         sleep 1

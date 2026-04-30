@@ -17,7 +17,7 @@ def build_stream_url
 end
 
 STREAM_URL = build_stream_url
-TEMP_DIR = ENV['TEMP_DIR'] || './temp'
+TEMP_DIR = ENV['TEMP_DIR'] || File.expand_path('temp', __dir__)
 DURATION_SEC = (ENV['DURATION_SEC'] || 30).to_i
 RETRY_WAIT = (ENV['RETRY_WAIT'] || 10).to_i
 SILENCE_MP3 = ENV['SILENCE_MP3'] || File.expand_path('silence.mp3', __dir__)
