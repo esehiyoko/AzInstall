@@ -1,0 +1,15 @@
+<ezstream>
+    <url>https://music.soundnesia.com/mount_mount_delayed.mp3</url>
+    <sourcepassword>　</sourcepassword>
+    <format>MP3</format>
+    <filename>/usr/share/icecast/web/mount_delayed.mp3</filename>
+    <stream_once>1</stream_once>
+    <svrinfoname>soundnesia</svrinfoname>
+    <svrinfourl>https://soundnesia.com/</svrinfourl>
+    <svrinfogenre>soundnesia</svrinfogenre>
+    <svrinfodescription>This is a stream description</svrinfodescription>
+    <svrinfobitrate>128</svrinfobitrate>
+    <svrinfochannels>2</svrinfochannels>
+    <svrinfosamplerate>44100</svrinfosamplerate>
+    <svrinfopublic>0</svrinfopublic>
+</ezstream> 
